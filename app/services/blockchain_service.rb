@@ -36,13 +36,13 @@ module BlockchainService
         deposit = Deposits::Coin
                     .where(currency: currencies)
                     .find_or_create_by!(deposit_hash)
-
         deposit.accept! if deposit.confirmations >= blockchain.min_confirmations
       end
     end
 
     def update_withdrawals!(withdrawals)
       withdrawals.each do |withdrawal_hash|
+
         withdrawal = Withdraws::Coin
                        .confirming
                        .where(currency: currencies)

@@ -51,10 +51,6 @@ module BlockchainService
       transactions.each_with_object([]) do |tx, deposits|
         next unless valid_transaction?(tx)
 
-        if ledger_index == 12293822 || ledger_index == '12293822'
-          binding.pry
-        end
-
         destination_tag = tx['DestinationTag'] || client.destination_tag_from(tx['Destination'])
         address = "#{client.to_address(tx)}?dt=#{destination_tag}"
 
@@ -88,7 +84,7 @@ module BlockchainService
             withdraw_txs.fetch(:entries).each do |entry|
               withdrawals << {
                 txid:           withdraw_txs[:id],
-                rid:            entry[:address],
+                rid:            client.to_address(tx),
                 amount:         entry[:amount],
                 block_number:   ledger_index
               }

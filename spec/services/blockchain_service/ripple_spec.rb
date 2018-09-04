@@ -92,8 +92,8 @@ describe BlockchainService::Ripple do
       it 'changes withdraw confirmations amount' do
         process_blockchain
         subject.each do |withdrawal|
-          expect(withdrawal.confirmations).to eq confirmations
-          expect(withdrawal.aasm_state).to eq 'succeed'
+          expect(withdrawal.reload.aasm_state).to eq 'succeed'
+          expect(withdrawal.reload.confirmations).to eq confirmations
         end
       end
     end
@@ -103,7 +103,7 @@ describe BlockchainService::Ripple do
         [
           {
             amount:   1481.213099,
-            address:  'rLW9gnQo7BQhU6igk5keqYnH3TVrCxGRzm',
+            address:  'rLW9gnQo7BQhU6igk5keqYnH3TVrCxGRzm?dt=442374800',
             txid:     '9C606146E70ECD39BA4EC008A6933A228EB014025D13D9023967212D8095DA07'
           }
         ]
@@ -112,7 +112,7 @@ describe BlockchainService::Ripple do
       let(:currency) { Currency.find_by_id(:xrp) }
 
       let!(:payment_address) do
-        create(:xrp_payment_address, address: 'rLW9gnQo7BQhU6igk5keqYnH3TVrCxGRzm')
+        create(:xrp_payment_address, address: 'rLW9gnQo7BQhU6igk5keqYnH3TVrCxGRzm?dt=442374800')
       end
 
       before do
