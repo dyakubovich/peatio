@@ -128,6 +128,7 @@ module WalletClient
       end while PaymentAddress.where(currency_id: :xrp)
                               .where('address LIKE ?', "%dt=#{tag}")
                               .any?
+      tag
     end
   end
 end
