@@ -123,8 +123,8 @@ module WalletClient
 
     def generate_destination_tag
       begin
-        # Reserve destination 0 for system purpose
-        tag = SecureRandom.random_number(10**10) + 1
+        # Reserve destination 1 for system purpose
+        tag = SecureRandom.random_number(10**9) + 2
       end while PaymentAddress.where(currency_id: :xrp)
                               .where('address LIKE ?', "%dt=#{tag}")
                               .any?
