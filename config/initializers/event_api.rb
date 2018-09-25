@@ -176,7 +176,7 @@ module EventAPI
     private
 
       def bunny_session
-        Bunny::Session.new(rabbitmq_credentials).tap do |session|
+        Bunny::Session.new({}).tap do |session|
           session.start
           Kernel.at_exit { session.stop }
         end
@@ -186,7 +186,7 @@ module EventAPI
       def bunny_channel
         bunny_session.channel
       end
-      memoize :bunny_channel
+    memoize :bunny_channel
 
       def bunny_exchange(name)
         bunny_channel.direct(name)

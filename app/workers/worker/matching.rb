@@ -21,9 +21,19 @@ module Worker
     def process(payload, metadata, delivery_info)
       payload.symbolize_keys!
 
+      Rails.logger.debug { "Mathcin #{payload}" }
+      puts("Matching #{payload}")
+
       case payload[:action]
       when "submit"
-        submit build_order(payload[:order])
+        order = build_order(payload[:order])
+        if submit(order, :dry)
+          puts 'LOCAL Matching'
+          submit order
+        else
+          puts 'REMOTE Matching'
+          send_to_remote(order)
+        end
       when "cancel"
         cancel build_order(payload[:order])
       when "reload"
@@ -35,8 +45,12 @@ module Worker
       end
     end
 
-    def submit(order)
-      engines[order.market].submit(order)
+    def submit(order, mode = nil)
+      engines[order.market].submit(order, mode)
+    end
+
+    def send_to_remote(order)
+      engines[order.market].submit_dry(order)
     end
 
     def cancel(order)

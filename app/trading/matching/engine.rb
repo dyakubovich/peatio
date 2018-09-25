@@ -1,14 +1,15 @@
 # encoding: UTF-8
 # frozen_string_literal: true
 
+require "peatio/upstream/binance"
+
 module Matching
   class Engine
-
     attr :orderbook, :mode, :queue
     delegate :ask_orders, :bid_orders, to: :orderbook
 
-    def initialize(market, options={})
-      @market    = market
+    def initialize(market, options = {})
+      @market = market
       @orderbook = OrderBookManager.new(market.id)
 
       # Engine is able to run in different mode:
@@ -17,13 +18,52 @@ module Matching
       shift_gears(options[:mode] || :run)
     end
 
-    def submit(order)
+    def submit(order, mode = nil)
+      Rails.logger.debug("SUBMIT - #{order}")
+      puts("SUBMIT #{order.attributes} #{mode} ORDERBOOKS - #{orderbook}")
       book, counter_book = orderbook.get_books order.type
-      match(order, counter_book)
-      add_or_cancel(order, book)
+      puts("BOOK - #{book}, counter_book - #{counter_book}")
+      binding.pry
+      if mode == :dry
+        puts 'MODE DRY'
+        local_match?(order, counter_book)
+      else
+        puts 'MODE OLD'
+        match(order, counter_book)
+        add_or_cancel(order, book)
+      end
     rescue => e
       Rails.logger.error { "Failed to submit order #{order.label}." }
       report_exception(e)
+    end
+
+    def submit_dry(order)
+      puts("SUBMIT DRY #{order}")
+      book, counter_book = orderbook.get_books order.type
+      binance = Peatio::Upstream::Binance.new
+      binance.start!([@market])
+      binance.on(:open) { |orderbooks|
+        remote_orderbooks = orderbooks[@market]
+        puts "REMOTE ORDERBOOKS #{remote_orderbooks}"
+        # here will be remote matching
+        if remote_match?(order, remote_orderbooks)
+          # remote_order = binance.trader.order(
+          #   timeout: 5,
+          #   symbol: order.market,
+          #   type: order.ord_type,
+          #   side: order.type,
+          #   quantity: order.volume,
+          #   price: order.price
+          # )
+        else
+
+        end
+      }
+
+      binance.on(:error) { |message|
+        # Process error and exit
+        Rails.logger.error { "Failed to upstream order #{order.label}." }
+      }
     end
 
     def cancel(order)
@@ -36,20 +76,20 @@ module Matching
     end
 
     def limit_orders
-      { ask: ask_orders.limit_orders,
-        bid: bid_orders.limit_orders }
+      {ask: ask_orders.limit_orders,
+       bid: bid_orders.limit_orders}
     end
 
     def market_orders
-      { ask: ask_orders.market_orders,
-        bid: bid_orders.market_orders }
+      {ask: ask_orders.market_orders,
+       bid: bid_orders.market_orders}
     end
 
     def shift_gears(mode)
       case mode
       when :dryrun
         @queue = []
-        class <<@queue
+        class << @queue
           def enqueue(*args)
             push args
           end
@@ -93,9 +133,9 @@ module Matching
     def publish(order, counter_order, trade)
       ask, bid = order.type == :ask ? [order, counter_order] : [counter_order, order]
 
-      price  = @market.fix_number_precision :bid, trade[0]
+      price = @market.fix_number_precision :bid, trade[0]
       volume = @market.fix_number_precision :ask, trade[1]
-      funds  = trade[2]
+      funds = trade[2]
 
       Rails.logger.info { "[#{@market.id}] new trade - ask: #{ask.label} bid: #{bid.label} price: #{price} volume: #{volume} funds: #{funds}" }
 
@@ -109,8 +149,21 @@ module Matching
     def publish_cancel(order)
       @queue.enqueue \
         :order_processor,
-        { action: 'cancel', order: order.attributes },
-        { persistent: false }
+        {action: "cancel", order: order.attributes},
+        {persistent: false}
+    end
+
+    def remote_match?(order, orderbooks)
+      puts 'REMOTE MATCH'
+      order.type == :ask ? orderbooks[order.market].match_ask(order.price) : orderbooks[order.market].match_bid(order.price)
+    end
+
+    def local_match?(order, counter_book)
+      puts 'LOCAL MATCH'
+      # match_implementation(order, counter_book)
+      counter_order = counter_book.top
+      binding.pry
+      !order.filled? && order.is_a?(LimitOrder) && counter_order && order.crossed?(counter_order.price)
     end
   end
 end

@@ -1,7 +1,7 @@
 # encoding: UTF-8
 # frozen_string_literal: true
 
-require_relative 'constants'
+require_relative "constants"
 
 module Matching
   class LimitOrder
@@ -9,12 +9,12 @@ module Matching
     attr_accessor :volume
 
     def initialize(attrs)
-      @id         = attrs[:id]
-      @timestamp  = attrs[:timestamp]
-      @type       = attrs[:type].to_sym
-      @volume     = attrs[:volume].to_d
-      @price      = attrs[:price].to_d
-      @market     = attrs[:market]
+      @id = attrs[:id]
+      @timestamp = attrs[:timestamp]
+      @type = attrs[:type].to_sym
+      @volume = attrs[:volume].to_d
+      @price = attrs[:price].to_d
+      @market = attrs[:market]
 
       raise InvalidOrderError.new(attrs) unless valid?
     end
@@ -22,14 +22,14 @@ module Matching
     def trade_with(counter_order, counter_book)
       if counter_order.is_a?(LimitOrder)
         if crossed?(counter_order.price)
-          trade_price  = counter_order.price
+          trade_price = counter_order.price
           trade_volume = [volume, counter_order.volume].min
-          trade_funds  = trade_price*trade_volume
+          trade_funds = trade_price * trade_volume
           [trade_price, trade_volume, trade_funds]
         end
       else
         trade_volume = [volume, counter_order.volume, counter_order.volume_limit(price)].min
-        trade_funds  = price*trade_volume
+        trade_funds = price * trade_volume
         [price, trade_volume, trade_funds]
       end
     end
@@ -52,7 +52,7 @@ module Matching
     end
 
     def label
-      "%d/$%s/%s" % [id, price.to_s('F'), volume.to_s('F')]
+      "%d/$%s/%s" % [id, price.to_s("F"), volume.to_s("F")]
     end
 
     def valid?
@@ -61,14 +61,13 @@ module Matching
     end
 
     def attributes
-      { id: @id,
-        timestamp: @timestamp,
-        type: @type,
-        volume: @volume,
-        price: @price,
-        market: @market,
-        ord_type: 'limit' }
+      {id: @id,
+       timestamp: @timestamp,
+       type: @type,
+       volume: @volume,
+       price: @price,
+       market: @market,
+       ord_type: "limit"}
     end
-
   end
 end

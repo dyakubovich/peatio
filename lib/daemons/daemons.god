@@ -69,7 +69,7 @@ daemon 'amqp:market_ticker',
        arguments: %w[ market_ticker ]
 
 daemon 'amqp:matching',
-       script:   'amqp_daemon.rb',
+       script:   'em_matching_daemon.rb',
        arguments: %w[ matching ]
 
 daemon 'amqp:order_processor',
@@ -94,6 +94,6 @@ daemon 'amqp:withdraw_coin',
 
 Dir.glob "#{File.dirname(__FILE__)}/**/*.rb" do |file|
   script = File.basename(file)
-  next if %w[ amqp_daemon.rb ].include?(script)
+  next if %w[ amqp_daemon.rb em_matching_daemon.rb ].include?(script)
   daemon File.basename(script, '.*'), script: script
 end
