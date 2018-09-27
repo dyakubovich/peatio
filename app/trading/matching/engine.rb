@@ -23,7 +23,6 @@ module Matching
       puts("SUBMIT #{order.attributes} #{mode} ORDERBOOKS - #{orderbook}")
       book, counter_book = orderbook.get_books order.type
       puts("BOOK - #{book}, counter_book - #{counter_book}")
-      binding.pry
       if mode == :dry
         puts 'MODE DRY'
         local_match?(order, counter_book)
@@ -41,27 +40,30 @@ module Matching
       puts("SUBMIT DRY #{order}")
       book, counter_book = orderbook.get_books order.type
       binance = Peatio::Upstream::Binance.new
-      binance.start!([@market])
-      binance.on(:open) { |orderbooks|
-        remote_orderbooks = orderbooks[@market]
-        puts "REMOTE ORDERBOOKS #{remote_orderbooks}"
-        # here will be remote matching
-        if remote_match?(order, remote_orderbooks)
-          # remote_order = binance.trader.order(
-          #   timeout: 5,
-          #   symbol: order.market,
-          #   type: order.ord_type,
-          #   side: order.type,
-          #   quantity: order.volume,
-          #   price: order.price
-          # )
-        else
+      binance.start!([@market.id])
+      puts("Start REMOTE STREAM #{@market.id}")
+      binance.on :open do |orderbooks|
+        puts("REMOTE #{orderbooks}")
+        # remote_orderbooks = orderbooks[@market]
+        # puts "REMOTE ORDERBOOKS #{remote_orderbooks}"
+        # # here will be remote matching
+        # if remote_match?(order, remote_orderbooks)
+        #   # remote_order = binance.trader.order(
+        #   #   timeout: 5,
+        #   #   symbol: order.market,
+        #   #   type: order.ord_type,
+        #   #   side: order.type,
+        #   #   quantity: order.volume,
+        #   #   price: order.price
+        #   # )
+        # else
 
-        end
-      }
+        # end
+      end
 
       binance.on(:error) { |message|
         # Process error and exit
+        puts('FAILED CONNECT UPSTREAM')
         Rails.logger.error { "Failed to upstream order #{order.label}." }
       }
     end
@@ -155,15 +157,22 @@ module Matching
 
     def remote_match?(order, orderbooks)
       puts 'REMOTE MATCH'
-      order.type == :ask ? orderbooks[order.market].match_ask(order.price) : orderbooks[order.market].match_bid(order.price)
+      if order.type == :ask
+        orderbooks[order.market].match_ask(order.price)
+      else
+        orderbooks[order.market].match_bid(order.price)
+      end
     end
 
     def local_match?(order, counter_book)
       puts 'LOCAL MATCH'
-      # match_implementation(order, counter_book)
+      return if order.filled?
+      return unless (counter_order = counter_book.top)
+
       counter_order = counter_book.top
-      binding.pry
-      !order.filled? && order.is_a?(LimitOrder) && counter_order && order.crossed?(counter_order.price)
+      if trade = order.trade_with(counter_order, counter_book)
+        counter_book.fill_top(*trade)
+      end
     end
   end
 end

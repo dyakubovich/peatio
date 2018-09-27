@@ -6,7 +6,7 @@ class Order < ActiveRecord::Base
   include BelongsToMember
 
   extend Enumerize
-  enumerize :state, in: { wait: 100, done: 200, upstreamed: 300, cancel: 0 }, scope: true
+  enumerize :state, in: { wait: 100, done: 200, remote: 300, cancel: 0 }, scope: true
 
   TYPES = %w[ market limit ]
   enumerize :ord_type, in: TYPES, scope: true
@@ -21,11 +21,11 @@ class Order < ActiveRecord::Base
   WAIT   = 'wait'
   DONE   = 'done'
   CANCEL = 'cancel'
-  UPSTREAMED = 'upstreamed'
+  REMOTE = 'remote'
 
   scope :done, -> { with_state(:done) }
   scope :active, -> { with_state(:wait) }
-  scope :upstreamed, -> { with_state(:upstreamed) }
+  scope :remote, -> { with_state(:remote) }
 
   before_validation(on: :create) { self.fee = config.public_send("#{kind}_fee") }
 

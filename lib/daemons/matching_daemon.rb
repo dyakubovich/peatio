@@ -12,15 +12,15 @@ EM.run do
   ch.prefetch(prefetch) if prefetch > 0
   logger.info { "Connected to AMQP broker (prefetch: #{prefetch > 0 ? prefetch : 'default'})" }
 
-  terminate = proc do
-    # logger is forbidden in signal handling, just use puts here
-    puts "Terminating threads .."
-    ch.work_pool.kill
-    EM.stop
-    puts "Stopped."
+  %w(INT TERM).each do |signal|
+    Signal.trap(signal) do
+      # logger is forbidden in signal handling, just use puts here
+      puts "Terminating threads .."
+      ch.work_pool.kill
+      EM.stop
+      puts "Stopped."
+    end
   end
-  Signal.trap("INT",  &terminate)
-  Signal.trap("TERM", &terminate)
 
   workers = []
   ARGV.each do |id|
