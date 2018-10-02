@@ -92,6 +92,10 @@ daemon 'amqp:withdraw_coin',
        script:   'amqp_daemon.rb',
        arguments: %w[ withdraw_coin ]
 
+daemon 'amqp:remote_matching',
+       script: 'remote_matching',
+       arguments: %w[ remote_matching ]
+
 Dir.glob "#{File.dirname(__FILE__)}/**/*.rb" do |file|
   script = File.basename(file)
   next if %w[ amqp_daemon.rb matching_daemon.rb ].include?(script)

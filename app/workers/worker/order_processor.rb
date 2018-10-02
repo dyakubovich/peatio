@@ -4,10 +4,13 @@
 module Worker
   class OrderProcessor
     def process(payload)
+      order = Order.find_by_id(payload.dig('order', 'id'))
+      return unless order.present?
       case payload['action']
         when 'cancel'
-          order = Order.find_by_id(payload.dig('order', 'id'))
-          cancel(order) if order
+          cancel(order)
+        when 'remote'
+          remote(order)
       end
     end
 
@@ -15,6 +18,12 @@ module Worker
 
     def cancel(order)
       Ordering.new(order).cancel!
+    rescue StandardError => e
+      report_exception_to_screen(e)
+    end
+
+    def remote(order)
+      Ordering.new(order).remote!
     rescue StandardError => e
       report_exception_to_screen(e)
     end

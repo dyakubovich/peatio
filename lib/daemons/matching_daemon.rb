@@ -44,29 +44,40 @@ EM.run do
 
     clean_start = AMQPConfig.data[:binding][id][:clean_start]
     queue.purge if clean_start
+    market_ids = Market.enabled.where('upstream_id IS NOT NULL').pluck(:id)
+    binance = Peatio::Upstream::Binance.new
 
     # Enable manual acknowledge mode by setting manual_ack: true.
-    queue.subscribe manual_ack: true do |delivery_info, metadata, payload|
-      logger.info { "Received: #{payload}" }
-      begin
+    binance.start!(market_ids)
+    binance.on :open do  |orderbooks|
+      queue.subscribe manual_ack: true do |delivery_info, metadata, payload|
+        logger.info { "Received: #{payload}" }
+        begin
+          # Invoke Worker#process with floating number of arguments.
+          args          = [JSON.parse(payload), metadata, delivery_info]
+          arity         = worker.method(:process).arity
+          resized_args  = arity < 0 ? args : args[0...arity]
 
-        # Invoke Worker#process with floating number of arguments.
-        args          = [JSON.parse(payload), metadata, delivery_info]
-        arity         = worker.method(:process).arity
-        resized_args  = arity < 0 ? args : args[0...arity]
-        worker.method(:process).call(*resized_args)
+          resized_args << orderbooks
+          worker.method(:process).call(*resized_args)
 
-        # Send confirmation to RabbitMQ that message has been successfully processed.
-        # See http://rubybunny.info/articles/queues.html
-        ch.ack(delivery_info.delivery_tag)
+          # Send confirmation to RabbitMQ that message has been successfully processed.
+          # See http://rubybunny.info/articles/queues.html
+          ch.ack(delivery_info.delivery_tag)
 
-      rescue => e
-        report_exception(e)
+        rescue => e
+          report_exception(e)
 
-        # Ask RabbitMQ to deliver message once again later.
-        # See http://rubybunny.info/articles/queues.html
-        ch.nack(delivery_info.delivery_tag, false, true)
+          # Ask RabbitMQ to deliver message once again later.
+          # See http://rubybunny.info/articles/queues.html
+          ch.nack(delivery_info.delivery_tag, false, true)
+        end
       end
+
+      binance.on(:error) { |message|
+        # Process error and exit
+        puts 'Error'
+      }
     end
 
     workers << worker

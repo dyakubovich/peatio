@@ -27,6 +27,10 @@ class Ordering
     ActiveRecord::Base.transaction { @orders.each(&method(:do_cancel!)) }
   end
 
+  def remote!
+    ActiveRecord::Base.transaction { @orders.each(&method(:do_remote!)) }
+  end
+
 private
 
   def do_submit(order)
@@ -45,6 +49,14 @@ private
       return unless order.state == Order::WAIT
       order.hold_account!.unlock_funds!(order.locked)
       order.update!(state: Order::CANCEL)
+    end
+  end
+
+  def do_remote!(order)
+    order.with_lock do
+      return unless order.state == Order::WAIT
+      order.hold_account!.unlock_funds!(order.locked)
+      order.update!(state: Order::REMOTE)
     end
   end
 end

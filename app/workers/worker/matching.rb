@@ -15,10 +15,11 @@ module Worker
 
     def initialize(options = {})
       @options = options
+      puts(@options)
       reload "all"
     end
 
-    def process(payload, metadata, delivery_info)
+    def process(payload, metadata, delivery_info, remote_orderbooks)
       payload.symbolize_keys!
 
       Rails.logger.debug { "Mathcin #{payload}" }
@@ -32,7 +33,7 @@ module Worker
           submit order
         else
           puts 'REMOTE Matching'
-          send_to_remote(order)
+          send_to_remote(order, remote_orderbooks)
         end
       when "cancel"
         cancel build_order(payload[:order])
@@ -49,8 +50,8 @@ module Worker
       engines[order.market].submit(order, mode)
     end
 
-    def send_to_remote(order)
-      engines[order.market].submit_dry(order)
+    def send_to_remote(order, remote_orderbooks)
+      engines[order.market].submit_dry(order, remote_orderbooks)
     end
 
     def cancel(order)

@@ -16,6 +16,7 @@ class AMQPConfig
     end
 
     def binding_exchange_id(id)
+      puts(id)
       data[:binding][id][:exchange]
     end
 

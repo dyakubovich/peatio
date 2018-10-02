@@ -36,36 +36,15 @@ module Matching
       report_exception(e)
     end
 
-    def submit_dry(order)
+    def submit_dry(order, remote_orderbooks)
       puts("SUBMIT DRY #{order}")
       book, counter_book = orderbook.get_books order.type
-      binance = Peatio::Upstream::Binance.new
-      binance.start!([@market.id])
-      puts("Start REMOTE STREAM #{@market.id}")
-      binance.on :open do |orderbooks|
-        puts("REMOTE #{orderbooks}")
-        # remote_orderbooks = orderbooks[@market]
-        # puts "REMOTE ORDERBOOKS #{remote_orderbooks}"
-        # # here will be remote matching
-        # if remote_match?(order, remote_orderbooks)
-        #   # remote_order = binance.trader.order(
-        #   #   timeout: 5,
-        #   #   symbol: order.market,
-        #   #   type: order.ord_type,
-        #   #   side: order.type,
-        #   #   quantity: order.volume,
-        #   #   price: order.price
-        #   # )
-        # else
-
-        # end
+      if remote_match?(order, remote_orderbooks)
+        puts('CAN BE REMOTE MATCH')
+        publich_remote_matching(order)
+      else
+        puts('CAN`NOT BE REMOTE MATCH')
       end
-
-      binance.on(:error) { |message|
-        # Process error and exit
-        puts('FAILED CONNECT UPSTREAM')
-        Rails.logger.error { "Failed to upstream order #{order.label}." }
-      }
     end
 
     def cancel(order)
@@ -155,8 +134,16 @@ module Matching
         {persistent: false}
     end
 
+    def publich_remote_matching(order)
+      @queue.enqueue \
+        :remote_matching,
+        {action: "send_order", order: order.attributes},
+        {persistent: false}
+    end
+
     def remote_match?(order, orderbooks)
       puts 'REMOTE MATCH'
+      return false unless orderbooks.present?
       if order.type == :ask
         orderbooks[order.market].match_ask(order.price)
       else
